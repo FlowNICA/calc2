@@ -7,19 +7,31 @@
 
 #include <TObject.h>
 #include <TFile.h>
+#include <cmath>
+#include <cstddef>
+#include <limits>
 #include "correlation.h"
+#include "Math/SpecFuncMathMore.h"
 
+/// @brief Class containig the static methods to perform higher-level mathematical operations with Correlation<N>
 class Functions {
 public:
   Functions() = delete;
   ~Functions() = default;
-
+  /// @brief Calculates the resolution via three-subevent method. The resolution is built for the first vector.
+  /// R1 = sqrt( Q1Q2*Q1Q3/Q2Q3 )
   template<size_t N>
   static Correlation<N> Resolution3S(const Correlation<N>& first, const Correlation<N>& second, const Correlation<N>& third) noexcept {
     auto result = Sqrt( first * second / third);
     return result;
   }
-
+  /// @brief Assembles the vector of possible resolutions calculated using three-subevent method for the single SP-vector
+  /// R1 = sqrt( Q1Q2*Q1Q3/Q2Q3 )
+  /// @param file is a file-pointer from which all the correlations will be fetched.
+  /// @param directory is a directory containing all the possible correlations of the provided Q-vectors
+  /// @param ep_vector is a vector for which resolution will be calculated
+  /// @param res_vectors is an std::vector of Q-vector names which will be used to calculate resolution
+  /// @param comp_names is an std::array containing the componens of Q-vectors     
   template<size_t N>
   static std::vector< Correlation<N> > VectorResolutions3S(TFile* file,
                                                       const std::string& directory,
@@ -55,7 +67,14 @@ public:
     }
     return res_vector;
   }
-
+  /// @brief Assembles the vector of possible resolutions calculated using four-subevent method for the single SP-vector
+  /// R1 = Q1Q2 / sqrt( Q2Q3*Q2Q4/Q3Q4 )
+  /// @param file is a file-pointer from which all the correlations will be fetched.
+  /// @param directory is a directory containing all the possible correlations of the provided Q-vectors
+  /// @param sub_vectors are additional vectors which are used for resolution calculation
+  /// @param ep_vector is a vector for which resolution will be calculated
+  /// @param res_vectors is an std::vector of Q-vector names which will be used to calculate resolution
+  /// @param comp_names is an std::array containing the componens of Q-vectors
   template<size_t N>
   static std::vector<Correlation<N>> VectorResolutions4S(TFile* file,
                                                       const std::string& directory,
@@ -79,14 +98,63 @@ public:
       }
     }
     return result_vector;
-  };
-//  static Correlation ExtrapolateToFullEvent(const Correlation& half_event_resolution, double order);
+  }
+  /// @brief Function extrapolating the nth order resolution to m-order resolution
+  /// @param Rn is the correlation containing the resolution correction function
+  /// @param n is the order of provided resolution
+  /// @param m is the order the resolution should be extrapolated to
+  template<size_t N>
+  static Correlation<N> Extrapolate( const Correlation<N>& Rn, size_t n, size_t m ){
+    auto result = Rn;
+    for( int i=0; i<N; ++i ){
+      auto& res = result[i];
+      for( int ii=0; ii<res.size(); ++ii ){
+        auto mean = res.At(ii).Mean();
+        if( std::isnan(mean) )
+          continue;
+        if( std::isinf(mean) )
+          continue;
+        auto chi = DichotomyChiFinder(mean, n);
+        auto extrap = ResolutionFunction( chi, m );
+        auto ratio = extrap / mean;
+        res.At(ii) = res.At(ii)*ratio;
+      }
+    }
+    return result;
+  }
+
 private:
-//  static double ResolutionFunction( double chi, double k, double y );
-//  static double DichotomyResolutionSolver( double res, double order, std::vector<double> range = {0., 10.} );
+  static double DichotomyChiFinder( double value, double k, std::array<double, 2> range = {-10, 15} ){
+    auto [a, b] = range;
+      std::cout << "value: " << value << "\n";
+
+    while( fabs(a - b) > 1e-6 ){
+      auto c = (a+b)/2;
+      auto res_a = ResolutionFunction(a, k) - value;
+      auto res_b = ResolutionFunction(b, k) - value;
+      auto res_c = ResolutionFunction(c, k) - value;
+      if( res_a * res_c < 0 ){
+        b = c;
+        continue;
+      }
+      if( res_b * res_c < 0 ){
+        a = c;
+        continue;
+      }
+    }
+    return (a+b)/2;
+  }
+  static double ResolutionFunction(double chi, double k) {
+    auto chi2_over_2 = chi*chi / 2;
+    auto f1 = sqrt( M_PI ) / 2 * chi * exp( -chi2_over_2 );
+    auto f2 = ROOT::Math::cyl_bessel_i((k-1)/2, chi2_over_2);
+    auto f3 = ROOT::Math::cyl_bessel_i((k+1)/2, chi2_over_2);
+    auto f = f1*(f2+f3);
+    return f;
+  };
 };
 
-// Implementing the same functions for resolution calculation, but without propper error handling
+/// @brief Same as Functions but does not handle errors thrown while calculation.
 class [[deprecated("Please use functions in Function class")]] FunctionsNE  {
 public:
   FunctionsNE() = delete;
@@ -151,7 +219,7 @@ public:
       }
     }
     return result_vector;
-  };
+  }
   
   template<size_t N>
   static std::optional< Correlation<N> > CreateCorrelation( 
