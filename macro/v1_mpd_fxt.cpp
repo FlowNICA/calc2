@@ -2,14 +2,16 @@
 // Created by mikhail on 8/1/21.
 //
 void v1_mpd_fxt(){
-  auto file = TFile::Open( "~/Documents/Work/Dataset/QnToolsMPD/files-new1/corr_eff_urqmd_bibi_2.5gev_fxt.root" );
+  auto file     = TFile::Open( "~/Documents/Work/Dataset/QnToolsMPD/files-prod36-new/corr_urqmd_xew_2.5agev_prod36.root" );
+  auto file_out = TFile::Open( "~/Documents/Work/Dataset/QnToolsMPD/files-prod36-new/calc_urqmd_xew_2.5agev_prod36.root", "recreate" );
   std::vector<std::string> ep_vectors{ "F1_RESCALED", "F2_RESCALED", "F3_RESCALED" };
   std::vector<std::string> res_vectors{ "F1_RESCALED", "F2_RESCALED", "F3_RESCALED", "Tp_RESCALED", "Tneg_RESCALED", };
-  std::vector<std::string> sts_vectors{ "Tp_RESCALED", "Tpi_RESCALED", };
-  std::array<std::string, 2> q1q1_components{"x1x1b_norm", "y1y1b_norm"};
-  std::array<std::string, 2> q2q2_components{"x2x2b_norm", "y2y2b_norm"};
+  std::vector<std::string> sts_vectors{ "Tp_RESCALED", "Tneg_RESCALED", };
+  std::array<std::string, 4> q1q1_components{"x1x1cent", "y1y1cent", "x1y1cent", "y1x1cent"};
+  std::array<std::string, 4> q1q1_comps_res{"x1x1cent", "y1y1cent", "y1y1cent", "x1x1cent"};
+  std::array<std::string, 4> q2q2_components{"x2x2cent", "y2y2cent", "x2y2cent", "y2x2cent"};
+  std::array<std::string, 4> q2q2_comps_res{"x2x2cent", "y2y2cent", "y2y2cent", "x2x2cent"};
 
-  auto file_out = TFile::Open( "~/Documents/Work/Dataset/QnToolsMPD/files-new1/calc_eff_urqmd_bibi_2.5gev_fxt.root", "recreate" );
   file_out->cd();
   file_out->mkdir("resolutions");
   file_out->mkdir("proton");
@@ -23,7 +25,7 @@ void v1_mpd_fxt(){
     auto proton1_psi1 = FunctionsNE::CreateCorrelation( file, "/", std::array{"tru_proton_PLAIN"s, "psi_rp_PLAIN"s}, q1q1_components);
     auto pi_pos1_psi1 = FunctionsNE::CreateCorrelation( file, "/", std::array{"tru_pi_pos_PLAIN"s, "psi_rp_PLAIN"s}, q1q1_components);
     auto pi_neg1_psi1 = FunctionsNE::CreateCorrelation( file, "/", std::array{"tru_pi_neg_PLAIN"s, "psi_rp_PLAIN"s}, q1q1_components);
-    
+
     auto proton2_psi2 = FunctionsNE::CreateCorrelation( file, "/", std::array{"tru_proton_PLAIN"s, "psi_rp_PLAIN"s}, q2q2_components);
     auto pi_pos2_psi2 = FunctionsNE::CreateCorrelation( file, "/", std::array{"tru_pi_pos_PLAIN"s, "psi_rp_PLAIN"s}, q2q2_components);
     auto pi_neg2_psi2 = FunctionsNE::CreateCorrelation( file, "/", std::array{"tru_pi_neg_PLAIN"s, "psi_rp_PLAIN"s}, q2q2_components);
@@ -54,7 +56,7 @@ void v1_mpd_fxt(){
     auto proton1_psi1 = FunctionsNE::CreateCorrelation( file, "/", std::array{"proton_RESCALED"s, "psi_rp_PLAIN"s}, q1q1_components);
     auto pi_pos1_psi1 = FunctionsNE::CreateCorrelation( file, "/", std::array{"pi_pos_RESCALED"s, "psi_rp_PLAIN"s}, q1q1_components);
     auto pi_neg1_psi1 = FunctionsNE::CreateCorrelation( file, "/", std::array{"pi_neg_RESCALED"s, "psi_rp_PLAIN"s}, q1q1_components);
-    
+
     auto proton2_psi2 = FunctionsNE::CreateCorrelation( file, "/", std::array{"proton_RESCALED"s, "psi_rp_PLAIN"s}, q2q2_components);
     auto pi_pos2_psi2 = FunctionsNE::CreateCorrelation( file, "/", std::array{"pi_pos_RESCALED"s, "psi_rp_PLAIN"s}, q2q2_components);
     auto pi_neg2_psi2 = FunctionsNE::CreateCorrelation( file, "/", std::array{"pi_neg_RESCALED"s, "psi_rp_PLAIN"s}, q2q2_components);
@@ -88,7 +90,7 @@ void v1_mpd_fxt(){
     auto pi_pos_qa = FunctionsNE::CreateCorrelation( file, "/", std::array{"pi_pos_RESCALED"s, qa}, q1q1_components);
     auto pi_neg_qa = FunctionsNE::CreateCorrelation( file, "/", std::array{"pi_neg_RESCALED"s, qa}, q1q1_components);
 
-    auto res_v = FunctionsNE::VectorResolutions3S( file, "/", qa, res_vectors, q1q1_components );
+    auto res_v = FunctionsNE::VectorResolutions3S( file, "/", qa, res_vectors, q1q1_comps_res );
 
     for( auto R1 : res_v ) {
       auto v1_proton = std::make_optional(proton_qa.value() * 2 / R1);
@@ -114,7 +116,7 @@ void v1_mpd_fxt(){
   {
     auto res_v =
         FunctionsNE::VectorResolutions4S(file, "/", "F2_RESCALED",
-                                       sts_vectors, ep_vectors, q1q1_components);
+                                       sts_vectors, ep_vectors, q1q1_comps_res);
 
     std::string qa = "F2_RESCALED";
     auto proton_qa = FunctionsNE::CreateCorrelation( file, "/", std::array{"proton_RESCALED"s, qa}, q1q1_components);
@@ -143,16 +145,16 @@ void v1_mpd_fxt(){
 //  *******************************************
   {
     auto proton_qa_qb = std::make_optional( Correlation<2>(file, "/", {"proton_RESCALED"s, "F1_RESCALED"s, "F3_RESCALED"s}, {
-      "x2x1x1b_norm",
-      "x2y1y1b_norm",
+      "x2x1x1cent",
+      "x2y1y1cent",
     }));
     auto pi_pos_qa_qb = std::make_optional( Correlation<2>( file, "/", {"pi_pos_RESCALED"s, "F1_RESCALED"s, "F3_RESCALED"s}, {
-      "x2x1x1b_norm",
-      "x2y1y1b_norm",
+      "x2x1x1cent",
+      "x2y1y1cent",
     }));
     auto pi_neg_qa_qb = std::make_optional( Correlation<2>( file, "/", {"pi_neg_RESCALED"s, "F1_RESCALED"s, "F3_RESCALED"s}, {
-      "x2x1x1b_norm",
-      "x2y1y1b_norm",
+      "x2x1x1cent",
+      "x2y1y1cent",
     }));
 
     proton_qa_qb.value() = proton_qa_qb.value()*4;
@@ -160,8 +162,8 @@ void v1_mpd_fxt(){
     pi_neg_qa_qb.value() = pi_neg_qa_qb.value()*4;
     auto qa_qb = FunctionsNE::CreateCorrelation( file, "/", std::array{"F1_RESCALED"s, "F3_RESCALED"s},
                                                  std::array<std::string, 2>{
-                                                   "x1x1b_norm",
-                                                   "y1y1b_norm",
+                                                   "x1x1cent",
+                                                   "y1y1cent",
                                                  });
     auto proton_v2 = std::make_optional(proton_qa_qb.value() / (qa_qb.value() * 2.0));
     auto pi_pos_v2 = std::make_optional(pi_pos_qa_qb.value() / (qa_qb.value() * 2.0));
